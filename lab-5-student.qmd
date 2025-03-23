@@ -169,6 +169,7 @@ variable included in the `teacher_evals_codebook.pdf`.
 # code chunk for loading packages
 library(tidyverse)
 library(dplyr)
+library(naniar)
 ```
 
 **2. Load in the `teacher_evals` data.**
@@ -176,21 +177,28 @@ library(dplyr)
 ```{r}
 #| label: load-data
 # code chunk for importing the data
-
+teach_evals <- read_csv("teacher_evals.csv")
 ```
 
 ### Data Inspection + Summary
 
 **3. Provide a brief overview (\~4 sentences) of the dataset.**
 
+> The data has a rich assortment of various data on students and teachers based on specific classes. Some of this data includes variables like the teacher's academic degree, the amount of time they have worked, their gender, as well as stats about their population of students like the standard deviation of their grades or what percentage failed their class. 
+
 ```{r}
 #| label: explore-data
 # you may want to use code to answer this question
-
+summary(teach_evals)
+dim(teach_evals)
+glimpse(teach_evals)
+str(teach_evals_clean)
 ```
 
 **4. What is the unit of observation (i.e. a single row in the dataset)
 identified by?**
+
+> Class_id, teacher_id, question_no. These three columns are used to create a specific variable per row. 
 
 ```{r}
 #| label: row-identification
@@ -214,36 +222,56 @@ identified by?**
 
 ```{r}
 #| label: data-cleaning
-# code chunk for Q4
-
+# renames "gender" to "sex" and filters no_participants for values > 10, keeps only variables we want
+teacher_evals_clean <- teach_evals %>%
+  rename(sex = gender) %>%
+  filter(no_participants > 10) %>%
+  mutate(teacher_id = as.character(teacher_id)) %>%
+  select(course_id, teacher_id, question_no, no_participants, resp_share, 
+         SET_score_avg, percent_failed_cur, academic_degree, seniority, sex)
+write.csv(teacher_evals_clean, "data-clean/teacher_evals_clean.csv", row.names = FALSE)
 ```
 
 **6. How many unique instructors and unique courses are present in the
 cleaned dataset?**
+There are 294 unique instructors and 921 unique courses. 
 
 ```{r}
 #| label: unique-courses
-# code chunk for Q5
-
+# summarise with n_distinct to find the number of each
+teach_evals_clean |> 
+summarise(unique_count = n_distinct(teacher_id)) 
+teach_evals_clean |> 
+   summarise(unique_count = n_distinct(course_id))
 ```
 
 **7. One teacher-course combination has some missing values, coded as
 `NA`. Which instructor has these missing values? Which course? What
 variable are the missing values in?**
+> The missing values are in the percent_failed_cur column name for the PAB3SE004PA course taught by teacher_id 56347. 
 
 ```{r}
 #| label: uncovering-missing-values
-# code chunk for Q6
-
+# display variables with n/a in them. manually saw values in data set
+gg_miss_var(teacher_evals_clean)
 ```
 
 **8. What are the demographics of the instructors in this study?
 Investigate the variables `academic_degree`, `seniority`, and `sex` and
 summarize your findings in \~3 complete sentences.**
 
+> There are 4270 teacher's with doctorates, 1808 with masters, 467 with no degree, and 118 with professional degrees. 
+The vast majority of the teachers (1639) have only two years of experience teaching. 3199 of the teachers are female and 3464 are male. 
+
 ```{r}
 #| label: exploring-demographics-of-instructors
 # code chunk for Q7
+teacher_evals_clean %>%
+  count(academic_degree)
+teacher_evals_clean %>%
+  count(seniority)
+teacher_evals_clean %>%
+  count(sex)
 
 ```
 
@@ -253,8 +281,18 @@ nine questions?**
 
 ```{r}
 #| label: teacher-course-asked-every-question
-# code chunk for Q8
-
+#I had someone help me with the filter and answer_all part because I didn't know about the %in% function
+#filters question_no containing values 901 through 909
+teacher_evals_clean %>%
+  filter(question_no %in% 901:909) %>%
+  #groups these values according to teacher id
+  group_by(teacher_id) %>%  
+  #summarise the values based on filter criteria listed above
+  summarise(answered_all = all(question_no %in% 901:909)) %>% 
+  #filters the questions to be true 
+  filter(answered_all == TRUE) %>%  
+  #shows how many teachers that meet the criteria are in the set
+  summarise(count = n())
 ```
 
 ## Rate my Professor
